@@ -3,17 +3,19 @@ function bhat=dec(sreceived)
 %bhat (double)=the estimated bits
 %Peter C. Doerschuk March 23, 2021
 
-Npause=375;
+tmp=(0:length(sreceived)-1)';
+c=(-.99).^tmp;
+r=[1 ; zeros(length(sreceived)-1,1)];
+H=toeplitz(c,r);
 
-Nb=length(sreceived)/375;
-if round(Nb)~=Nb
-  fprintf(1,'dec: round(Nb) %g Nb %d\n',round(Nb),Nb);
-  error('dec error');
-end
+[U,L,V] = svd(H);
+
+yprime = U'*sreceived;
+
 
 bhat=zeros(Nb,1);
 for n=1:Nb
-  if sreceived( (n-1)*Npause+1 )>=0
+  if sreceived(n)>=0
     bhat(n)=1;
   end
   %no need to consider sreceived(...)<0 because bhat is initialized to zero.
