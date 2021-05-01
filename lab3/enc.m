@@ -1,13 +1,21 @@
-function s=enc(b)
+function x=enc(b)
 %b (double)=vector of input bits.
 %s (double)=resulting vector of input symbols.
 %Peter C. Doerschuk March 23, 2021
 
 Nb=length(b);
-Npause=375;
 
-sshort=2*b-1;
-s=zeros(Nb*Npause,1);
-for n=1:Nb
-  s( (n-1)*Npause+1 )=sshort(n);
-end
+tmp=(0:length(b)-1)';
+c=(-.99).^tmp;
+r=[1 ; zeros(length(b)-1,1)];
+H=toeplitz(c,r);
+
+[U,L,V] = svd(H);
+
+x = V*b;
+
+
+
+
+
+
