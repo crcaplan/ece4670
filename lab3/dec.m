@@ -12,6 +12,7 @@ H=toeplitz(c,r);
 
 yprime = U'*sreceived;
 
+Nb = length(sreceived)
 
 bhat=zeros(Nb,1);
 for n=1:Nb
