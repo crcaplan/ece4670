@@ -4,44 +4,62 @@ function x=enc(b)
 %Peter C. Doerschuk March 23, 2021
 
 Nb=length(b);
+last_pam_idx = 12;
 
-tmp=(0:length(b)-1)';
+tmp=(0:length(b)-(last_pam_idx/2)-1)';  % changed to 2
 c=(-.99).^tmp;
-r=[1 ; zeros(length(b)-1,1)];
+r=[1 ; zeros(length(b)-(last_pam_idx/2)-1,1)];
 H=toeplitz(c,r);
 
 [U,L,V] = svd(H);
 
-x = V*b;
-output = zeros(Nb/2, 1);
+%disp(U)
+%disp(L)
+
+output = zeros((last_pam_idx/2) + (24-last_pam_idx),1);
+size(output);
 power = 0.25;
 gamma = sqrt(power/5);
-count = 1;
 
-for i = 1:2:length(x)
+out_idx = 1;
+
+for i = 1:2:last_pam_idx
        
-    if x(i) == 0 && x(i+1) == 0
-        output(count) = -3*gamma;
+    if b(i) == 0 && b(i+1) == 0
+        output(out_idx) = -3*gamma;
     end
-    
-    if x(i) == 0 && x(i+1) == 1
-        output(count) = -1*gamma;
+
+    if b(i) == 0 && b(i+1) == 1
+        output(out_idx) = -1*gamma;
     end
-    
-    if x(i) == 1 && x(i+1) == 1
-        output(count) = gamma;
+
+    if b(i) == 1 && b(i+1) == 1
+        output(out_idx) = gamma;
     end
+
+    if b(i) == 1 && b(i+1) == 0
+        output(out_idx) = 3*gamma;
+    end        
     
-    if x(i) == 1 && x(i+1) == 0
-        output(count) = 3*gamma;
-    end
-    
-   count = count + 1;
-             
+    out_idx = out_idx + 1;
+
 end
 
+xprime = sqrt(power)*(2*b - 1);
 
-x = output;
+output((last_pam_idx/2)+1:(last_pam_idx/2) + (24-last_pam_idx)) = xprime(last_pam_idx+1:Nb);
+
+
+size(V);
+size(output);
+
+x = V*output;
+
+
+
+
+
+
 
 
 

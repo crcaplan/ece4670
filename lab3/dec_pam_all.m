@@ -3,16 +3,16 @@ function bhat=dec(sreceived)
 %bhat (double)=the estimated bits
 %Peter C. Doerschuk March 23, 2021
 
-tmp=(0:length(sreceived)-1)';
+tmp=(0:length(sreceived)-12)';
 c=(-.99).^tmp;
-r=[1 ; zeros(length(sreceived)-1,1)];
+r=[1 ; zeros(length(sreceived)-12,1)];
 H=toeplitz(c,r);
 
 [U,L,V] = svd(H);
 
 yprime = U'*sreceived;
 
-Nb = length(sreceived);
+Nb = 24;
 
 bhat=zeros(Nb,1);
 % for n=1:Nb

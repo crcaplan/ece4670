@@ -4,20 +4,24 @@ function x=enc(b)
 %Peter C. Doerschuk March 23, 2021
 
 Nb=length(b);
+last_pam_idx = 12;
 
-tmp=(0:length(b)-2)';  % changed to 2
+tmp=(0:length(b)-(last_pam_idx/2)-1)';  % changed to 2
 c=(-.99).^tmp;
-r=[1 ; zeros(length(b)-2,1)];
+r=[1 ; zeros(length(b)-(last_pam_idx/2)-1,1)];
 H=toeplitz(c,r);
 
 [U,L,V] = svd(H);
 
-output = zeros(Nb-1,1);
+%disp(U)
+%disp(L)
+
+output = zeros((last_pam_idx/2) + (24-last_pam_idx),1);
+size(output);
 power = 0.25;
 gamma = sqrt(power/5);
 
 out_idx = 1;
-last_pam_idx = 4;
 
 for i = 1:2:last_pam_idx
        
@@ -42,7 +46,9 @@ for i = 1:2:last_pam_idx
 end
 
 xprime = sqrt(power)*(2*b - 1);
-output(last_pam_idx:Nb-1) = xprime(last_pam_idx+1:Nb);
+
+output((last_pam_idx/2)+1:(last_pam_idx/2) + (24-last_pam_idx)) = xprime(last_pam_idx+1:Nb);
+
 
 size(V);
 size(output);

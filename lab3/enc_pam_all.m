@@ -5,9 +5,9 @@ function x=enc(b)
 
 Nb=length(b);
 
-tmp=(0:length(b)-1)';
+tmp=(0:length(b)-12)';
 c=(-.99).^tmp;
-r=[1 ; zeros(length(b)-1,1)];
+r=[1 ; zeros(length(b)-12,1)];
 H=toeplitz(c,r);
 
 [U,L,V] = svd(H);
