@@ -12,15 +12,42 @@ H=toeplitz(c,r);
 
 [U,L,V] = svd(H);
 
-disp(L);
-
+x = V*b;
+output = zeros(Nb/2, 1);
 power = 0.25;
+gamma = sqrt(power/5);
+count = 1;
 
-xprime = sqrt(power)*(2*b - 1);
+for i = 1:2:length(x)
+       
+    if x(i) == 0 && x(i+1) == 0
+        output(count) = -3*gamma;
+    end
+    
+    if x(i) == 0 && x(i+1) == 1
+        output(count) = -1*gamma;
+    end
+    
+    if x(i) == 1 && x(i+1) == 1
+        output(count) = gamma;
+    end
+    
+    if x(i) == 1 && x(i+1) == 0
+        output(count) = 3*gamma;
+    end
+    
+   count = count + 1;
+             
+end
 
-% xprime = 2*b-1;
 
-x = V*xprime;
+x = output;
 
-% x = V*b;
+
+
+
+
+
+
+
 

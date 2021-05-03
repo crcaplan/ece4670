@@ -1,4 +1,4 @@
-function x=enc_pam_all(b)
+function x=enc(b)
 %b (double)=vector of input bits.
 %s (double)=resulting vector of input symbols.
 %Peter C. Doerschuk March 23, 2021
@@ -14,7 +14,8 @@ H=toeplitz(c,r);
 
 x = V*b;
 output = zeros(Nb/2, 1);
-gamma = 1;
+power = 0.25;
+gamma = sqrt(power/5);
 count = 1;
 
 for i = 1:2:length(x)

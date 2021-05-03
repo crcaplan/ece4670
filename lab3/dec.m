@@ -11,16 +11,49 @@ H=toeplitz(c,r);
 [U,L,V] = svd(H);
 
 yprime = U'*sreceived;
-% yprime(1) = yprime(1) / L(1,1);
 
-
-Nb = length(yprime);
+Nb = length(sreceived);
 
 bhat=zeros(Nb,1);
-for n=1:Nb
-  if yprime(n)>=0
-    bhat(n)=1;
-  end
-  %no need to consider sreceived(...)<0 because bhat is initialized to zero.
+% for n=1:Nb
+%   if sreceived(n)>=0
+%     bhat(n)=1;
+%   end
+%   %no need to consider sreceived(...)<0 because bhat is initialized to zero.
+% end
+
+count = 1;
+power = 0.25;
+gamma = sqrt(power/5);
+
+for k = 1:length(yprime)
+    yprime(k) = yprime(k) / L(k,k);
 end
 
+
+for i = 1:length(yprime)
+    
+    if yprime(i) < -2*gamma
+        bhat(count) = 0;
+        bhat(count + 1) = 0;
+    end
+    
+    if yprime(i) > -2*gamma && yprime(i) < 0
+        bhat(count) = 0;
+        bhat(count + 1) = 1;
+    end
+    
+    if yprime(i) > 0 && yprime(i) < 2*gamma
+        bhat(count) = 1;
+        bhat(count + 1) = 1;
+    end
+    
+    if yprime(i) > 2*gamma
+        bhat(count) = 1;
+        bhat(count + 1) = 0;
+    end
+    
+
+count = count + 2;   
+         
+end

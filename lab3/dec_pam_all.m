@@ -1,4 +1,4 @@
-function bhat=dec_pam_all(sreceived)
+function bhat=dec(sreceived)
 %sreceived (double)=the received symbols, including inter symbol interference and noise
 %bhat (double)=the estimated bits
 %Peter C. Doerschuk March 23, 2021
@@ -23,7 +23,13 @@ bhat=zeros(Nb,1);
 % end
 
 count = 1;
-gamma = 1;
+power = 0.25;
+gamma = sqrt(power/5);
+
+for k = 1:length(yprime)
+    yprime(k) = yprime(k) / L(k,k);
+end
+
 
 for i = 1:length(yprime)
     
