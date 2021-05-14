@@ -1,70 +1,50 @@
 function bhat=dec(sreceived)
-%sreceived (double)=the received symbols, including inter symbol interference and noise
-%bhat (double)=the estimated bits
-%Peter C. Doerschuk March 23, 2021
+% sreceived (double)=the received symbols, including ISI and noise
+% bhat (double) = the estimated bits
 
-last_pam_idx = 12;
-
-tmp=(0:length(sreceived)-1)';  % changed to 2
+% H matrix calcs taken from lab3 channel function
+tmp=(0:length(sreceived)-1)';
 c=(-.99).^tmp;
 r=[1 ; zeros(length(sreceived)-1,1)];
 H=toeplitz(c,r);
 
+% SVD to get pre/post-distortion matrices
 [U,L,V] = svd(H);
 
-
+% post-distortion
 yprime = U'*sreceived;
 
-Nb = length(yprime)+(last_pam_idx/2);
-
+% antipodal decoding for non-2-PAM symbols
+Nb = length(yprime)+1;
 bhat=zeros(Nb,1);
-
-
-for n=(last_pam_idx)/2+1:length(yprime)%(last_pam_idx/2) + (24-last_pam_idx)
+for n=2:Nb-1
   if yprime(n)>=0
-    bhat(n+(last_pam_idx/2))=1;
+    bhat(n+1)=1;
   end
-  %no need to consider sreceived(...)<0 because bhat is initialized to zero.
 end
-
 
 power = 0.25;
-gamma = sqrt(power/5);
+gamma = sqrt(power/5); % 2-PAM gamma
+yprime(1) = yprime(1) / L(1,1); % account for gain
 
-%size(L);
-%disp(L);
-
-
-for k = 1:last_pam_idx/2
-    yprime(k) = yprime(k) / L(k,k);
+% decode based on thresholds in 2-PAM constellation plot
+if yprime(1) <= -2*gamma
+    bhat(1) = 0;
+    bhat(2) = 0;
 end
 
+if yprime(1) > -2*gamma && yprime(1) <= 0
+    bhat(1) = 0;
+    bhat(2) = 1;
+end
 
-bits_idx = 1;
+if yprime(1) > 0 && yprime(1) <= 2*gamma
+    bhat(1) = 1;
+    bhat(2) = 1;
+end
 
-for i = 1:(last_pam_idx/2)
-    
-    if yprime(i) < -2*gamma
-        bhat(bits_idx) = 0;
-        bhat(bits_idx+1) = 0;
-    end
-
-    if yprime(i) > -2*gamma && yprime(i) < 0
-        bhat(bits_idx) = 0;
-        bhat(bits_idx+1) = 1;
-    end
-
-    if yprime(i) > 0 && yprime(i) < 2*gamma
-        bhat(bits_idx) = 1;
-        bhat(bits_idx+1) = 1;
-    end
-
-    if yprime(i) > 2*gamma
-        bhat(bits_idx) = 1;
-        bhat(bits_idx+1) = 0;
-    end
-    
-    bits_idx = bits_idx + 1;
-
-         
+if yprime(1) > 2*gamma
+    bhat(1) = 1;
+    bhat(2) = 0;
+end       
 end
