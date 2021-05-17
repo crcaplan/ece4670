@@ -1,3 +1,5 @@
+function dec()
+
 %read in 3 wav files
 [s1,fs1]=audioread('rx1.wav');
 [s2,fs2]=audioread('rx2.wav');
@@ -5,8 +7,9 @@
 
 %ffts of received signals
 %indices of prefix
-Ns = 200000;
+Ns = 200000; % hard code this, num bits per batch *2 + 1
 n_minus = 0;
+n_plus = 150; % or 175
 
 prefix1_len = length(s1((Ns-n_minus+1):(Ns)));
 prefix2_len = length(s2((2*Ns-n_minus+1):(2*Ns)));
@@ -21,55 +24,39 @@ S2_freq = fft(s2);
 S3_freq = fft(s3);
 
 %isolate left side of each fft (do we need to round)
-S1_freq_left = S1_freq(1:(length(S1_freq)/2));
-S2_freq_left = S2_freq(1:(length(S2_freq)/2));
-S3_freq_left = S3_freq(1:(length(S3_freq)/2));
+% get rid of the zero entry, no bits were put there
+S1_freq_left = S1_freq(2:(length(S1_freq)/2));
+S2_freq_left = S2_freq(2:(length(S2_freq)/2));
+S3_freq_left = S3_freq(2:(length(S3_freq)/2));
 
+% learn batch, bits one with random phases, directly getting the freq
+% response - do once just for the bits from the learning batch
 
+% divide the output by the input to get mag of freq reponse
 
-%impulse response batch 1
-indices1=find(s1==max(s1));
-h1=s1(indices1(1)-50:indices1(1)+200);
+learn_symb = s(2*Ns+1:2*Ns+1+(Ns/2)); % freq domain - check this
+learn_sym_mag = abs(learn_symb); % get rid of phases (should divide by 1)
 
-%impulse response batch 2
-indices2=find(s2==max(s2);
-h2=s2(indices2(1)-50:indices2(1)+200);
+% mag of yc, complex num got out of the fft, compare
 
-%impulse response batch 3
-indices3=find(s3==max(s3));
-h3=s3(indices3(1)-50:indices3(1)+200);
-
-%ffts of impulse responses
-H1_freq = fft(h1);
-H2_freq = fft(h2);
-H3_freq = fft(h3);
 
 %A is power 0.25
 power = 0.25;
 
 %compare fft left to power*fft of impulse response*.5
-compare_metric_s1 = 0.5*power*H1_freq;
-compare_metric_s2 = 0.5*power*H2_freq;
-compare_metric_s3 = 0.5*power*H3_freq;
+compare_metric_s1 = 0.5*power*learn_sym_mag; % this is a vector
+
+length(compare_metric_s1)
+length(S1_freq_left)
 
 %loop through to compare elementwise?
 bhat1 = zeros(Ns,1);
 for i=1:length(S1_freq_left)
-    if S1_freq_left(i) > compare_metric_s1(i)
+    if abs(S1_freq_left(i)) > compare_metric_s1(i)
         bhat1(i) = 1;
     end
 end
 
-bhat2 = zeros(Ns,1);
-for i=1:length(S2_freq_left)
-    if S2_freq_left(i) > compare_metric_s2(i)
-        bhat2(i) = 1;
-    end
-end
 
-bhat3 = zeros(Ns,1);
-for i=1:length(S3_freq_left)
-    if S3_freq_left(i) > compare_metric_s3(i)
-        bhat3(i) = 1;
-    end
+
 end
