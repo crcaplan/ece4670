@@ -1,62 +1,73 @@
-function dec()
+function bhat1 = dec()
 
-%read in 3 wav files
-[s1,fs1]=audioread('rx1.wav');
-[s2,fs2]=audioread('rx2.wav');
-[s3,fs3]=audioread('rx3.wav');
+%read in wav file
+[s0,~]=audioread('rx0.wav');
 
-%ffts of received signals
-%indices of prefix
-Ns = 200000; % hard code this, num bits per batch *2 + 1
+% constants
+b_len = 3000;
+Ns = 2*b_len + 1;
 n_minus = 0;
 n_plus = 150; % or 175
+batch_size = 1000;
 
-prefix1_len = length(s1((Ns-n_minus+1):(Ns)));
-prefix2_len = length(s2((2*Ns-n_minus+1):(2*Ns)));
-prefix3_len = length(s3((3*Ns-n_minus+1):(3*Ns)));
+prefix1_len = length(s0((batch_size-n_plus+1):(batch_size)));
+prefix2_len = length(s0((2*batch_size-n_plus+1):(2*batch_size)));
+prefix3_len = length(s0((3*batch_size-n_plus+1):(3*batch_size)));
 
-s1 = s1(prefix1_len+1:end);
-s2 = s2(prefix2_len+1:end);
-s3 = s3(prefix3_len+1:end);
+start = Ns + 2*b_len + 1;
 
-S1_freq = fft(s1);
-S2_freq = fft(s2);
-S3_freq = fft(s3);
+% could this be wrong? are we grabbing the wrong symbols?
+s1 = s0(start + prefix1_len+1 : start + prefix1_len + batch_size);
+s2 = s0(start + prefix1_len+1 + batch_size + prefix2_len : start + prefix1_len + batch_size*2 + prefix2_len);
+s3 = s0(start + prefix1_len+1 + batch_size*2 + prefix2_len + prefix3_len : start + prefix1_len + batch_size*3 + prefix2_len + prefix3_len);
 
-%isolate left side of each fft (do we need to round)
+s_whole = [s1; s2; s3];
+
+length(s1)
+length(s2)
+length(s3)
+
+
+s_learn = s0(Ns+1:Ns+1+ 2*b_len+1);
+
+S_freq = fft(s_whole);
+S_learn = fft(s_learn);
+
+%isolate left side of fft (do we need to round)
 % get rid of the zero entry, no bits were put there
-S1_freq_left = S1_freq(2:(length(S1_freq)/2));
-S2_freq_left = S2_freq(2:(length(S2_freq)/2));
-S3_freq_left = S3_freq(2:(length(S3_freq)/2));
+S_freq_left = S_freq(2:(length(S_freq)/2));
+S_learn_left = S_learn(2:(length(S_learn)/2));
+
+learn_sym_mag = abs(S_learn_left);
 
 % learn batch, bits one with random phases, directly getting the freq
 % response - do once just for the bits from the learning batch
 
 % divide the output by the input to get mag of freq reponse
 
-learn_symb = s(2*Ns+1:2*Ns+1+(Ns/2)); % freq domain - check this
-learn_sym_mag = abs(learn_symb); % get rid of phases (should divide by 1)
+%learn_symb = s0(2*Ns+1:2*Ns+1+(Ns/2)); % freq domain - check this
+
+%learn_symb = s0(Ns+1:Ns+1 + 2*b_len); % freq domain - check this
+%learn_sym_mag = abs(learn_symb); % get rid of phases (should divide by 1)
 
 % mag of yc, complex num got out of the fft, compare
 
 
 %A is power 0.25
-power = 0.25;
+power = 0.5;
 
 %compare fft left to power*fft of impulse response*.5
-compare_metric_s1 = 0.5*power*learn_sym_mag; % this is a vector
+compare_metric_s0 = 0.5*power*learn_sym_mag; % this is a vector
 
-length(compare_metric_s1)
-length(S1_freq_left)
+%length(compare_metric_s1)
+%length(S_freq_left)
 
 %loop through to compare elementwise?
-bhat1 = zeros(Ns,1);
-for i=1:length(S1_freq_left)
-    if abs(S1_freq_left(i)) > compare_metric_s1(i)
+bhat1 = zeros(b_len,1);
+for i=1:length(S_freq_left)
+    if abs(S_freq_left(i)) > compare_metric_s0(i)
         bhat1(i) = 1;
     end
 end
-
-
 
 end

@@ -33,7 +33,7 @@ num_iterations = ceil(length(b)/(num_batches*batch_size));
 
 for k = 0: num_iterations - 1
     
-    disp(k)
+    %disp(k)
     
     start = batch_size*k;
     
@@ -88,9 +88,9 @@ b_len = length(b);
 Xs_left = zeros(b_len+1, 1);
 
 % initialize the power and random phase
-pow = 0.25;
+pow = 0.5;
 rng(5);
-theta = 2*pi*(rand(b_len));
+theta = 2*pi*(rand(b_len,1));
 
 % loop through the bits and assign corresponding symbol value
 for i = 1:b_len
@@ -106,6 +106,6 @@ Xs_right = flip(conj(Xs_left(2:end)));
 Xs = [Xs_left ; Xs_right];
 
 % always should be an odd number
-disp(length(Xs));
+%disp(length(Xs));
 
 end
