@@ -3,7 +3,11 @@ function bhat = dec_new(num_bits, bits_per_batch, batches_per_sym, n_plus)
 %read in wav file
 [s_received,~]=audioread('rx.wav');
 
-length(s_received)
+%set 3/4 info bits
+num_info_per_batch = 0.75*bits_per_batch;
+num_zeros_per_batch = 0.25*bits_per_batch;
+
+length(s_received);
 %s_received(1:2000)
 
 first_point = find_first_symbol(s_received);
@@ -19,7 +23,7 @@ length(s_received)
 
 
 % calculate constants
-num_syms = num_bits/(bits_per_batch*batches_per_sym);
+num_syms = ceil(num_bits/(num_info_per_batch*batches_per_sym));
 prefix_len = n_plus; % edited !!!!
 cont_per_batch = bits_per_batch*2 + 1;
 symbol_len = cont_per_batch*batches_per_sym + prefix_len*batches_per_sym + cont_per_batch + bits_per_batch ;  % not includes the zeros or the ones
@@ -32,7 +36,7 @@ bhat = zeros(num_bits, 1);
 bhat_count = 1;
 
 for i = 1:num_syms % 40
-    
+    disp(i)
     % first need to grab an OFDM symbol
     OFDM_symbol = s_received(bits_counter + 1: bits_counter + symbol_len);
         
@@ -56,7 +60,7 @@ for i = 1:num_syms % 40
         
         % extract a batch and strip off the prefix
         batch_with_prefix = s_short(counter+1:counter + prefix_len + cont_per_batch);
-        batch_without_prefix = batch_with_prefix(prefix_len + 1:end);
+        batch_without_prefix = batch_with_prefix(prefix_len + 1:prefix_len + cont_per_batch);
          
         % increment the counter of bits within the symbol
         counter = counter + prefix_len + cont_per_batch;
@@ -64,31 +68,36 @@ for i = 1:num_syms % 40
         % convert batch to the frequency domain
         S_batch = fft(batch_without_prefix);
         S_batch_left = S_batch(2:((length(S_batch) - 1)/2)+1);
+        S_batch_left_info = S_batch_left(1:num_info_per_batch);
          
-        power = 0.00125;
-         
+        power = 0.75;
         % compare S_batch_left to power*fft of impulse response*.5
         compare_metric = 0.5*power*S_learn_mag; % this is a vector
          
         % loop through the batch and decode to bhat
-         for k = 1:length(S_batch_left)
-            if abs(S_batch_left(k)) > compare_metric(k) % > or >=
-                bhat(bhat_count) = 1;
+         for k = 1:length(S_batch_left_info)
+            if(bhat_count<=num_bits)
+                if (abs(S_batch_left_info(k)) > compare_metric(k)) % > or >=
+                    bhat(bhat_count) = 1;
+                end
+                bhat_count = bhat_count + 1;
             end
-            bhat_count = bhat_count + 1;
          end
     end   
     % increment the symbol bits counter 
-    bits_counter = bits_counter + symbol_len;      
+    bits_counter = bits_counter + symbol_len; 
+    disp(bits_counter)
+    disp(bhat_count)
 end 
 disp(bits_counter)
+disp(bhat_count)
 end
 
 function first_point = find_first_symbol(s_received)
 
 sample_count = 0;
 window_len = 20;
-thresh = 0.001;
+thresh = 0.0005;
 found = 0;
 
 while(found == 0)
