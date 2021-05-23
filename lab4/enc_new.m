@@ -1,6 +1,6 @@
 function enc_new(b, num_bits, bits_per_batch, batches_per_sym, n_plus)
 
-%set 3/4 info bits
+%set 3/4 of a batch to be info bits
 num_info_per_batch = 0.75*bits_per_batch;
 num_zeros_per_batch = 0.25*bits_per_batch;
 
@@ -16,6 +16,10 @@ full_vec_to_transmit = ones(1000,1);
 % for each symbol
 for i = 1:num_syms
     
+    %if-else to handle the case where information bits do not fit evenly
+    %into symbols (i.e. extra bits at the end)
+    
+    %all except the last symbol will be handled "normally"
     if(i ~= num_syms)
     
         % for each OFDM symbol create a vector of zeros
@@ -27,13 +31,13 @@ for i = 1:num_syms
         X_learn = to_cont(batch_learn);
         X_time_learn = ifft(X_learn);
 
-        % create the OFDM symbol
+        % initialize the OFDM symbol
         OFDM_sym = [batch0 ; X_time_learn];  % does this reset??????
 
-        % for each batch
+        % for each batch in a symbol
         for j = 1:batches_per_sym
 
-            % extract bits in a batch and convert to symbols
+            % extract the information bits, append zeros to the batch
             % should be vector of real values in the time domain
             info_batch = b(bits_counter + 1:bits_counter + num_info_per_batch);
             batch = [info_batch; zeros(num_zeros_per_batch,1)];
@@ -46,12 +50,14 @@ for i = 1:num_syms
             % concatenate prefix and batch to the OFDM_sym
             OFDM_sym = [OFDM_sym ; batch_prefix ; Xtime_batch];
 
-            % increment the bits counter
+            % increment the bits counter to start of next 
             bits_counter = bits_counter + num_info_per_batch;
 
         end
 
     
+    %last symbol will not need all info bits, need to fill the rest of the
+    %designated info bits with zeros
     else
         %do all of the ofdm stuff but only on remaining bits, fill the rest
         %with zeros in the last batch
@@ -65,41 +71,41 @@ for i = 1:num_syms
         X_learn = to_cont(batch_learn);
         X_time_learn = ifft(X_learn);
 
-        % create the OFDM symbol
-        OFDM_sym = [batch0 ; X_time_learn];  % does this reset??????
+        % initialize the OFDM symbol
+        OFDM_sym = [batch0 ; X_time_learn];
 
-        % for each batch
+        % for each batch in a symbol
         for j = 1:batches_per_sym
+            
+            % if the leftover bits fill a whole info batch, proceed as
+            % normal
             if((bits_counter+num_info_per_batch)<num_bits)
-                disp(j)
-                disp('can fill a whole info section')
-                % extract bits in a batch and convert to symbols
-                % should be vector of real values in the time domain
+                % extract the information bits, append zeros to the batch
                 info_batch = b(bits_counter + 1:bits_counter + num_info_per_batch);
                 batch = [info_batch; zeros(num_zeros_per_batch,1)];
                 bits_counter = bits_counter + num_info_per_batch;
+                
+            % if the leftover bits can fill a partial info section, fill
+            % the remainder of the info section with zeros
             elseif((num_bits-bits_counter)<num_info_per_batch && (num_bits-bits_counter)~=0)
-                disp(j)
-                disp('can fill a partial info section')
-                %can fill partial info section
+                % calculate remaining info bits and extra zeros needed
+                % extract the information bits, append zeros to the batch
                 remaining_info = num_bits - bits_counter;
-                disp(remaining_info)
                 info_batch = b(bits_counter + 1:bits_counter + remaining_info);
                 batch = [info_batch; zeros((bits_per_batch-remaining_info),1)];
                 bits_counter = bits_counter + remaining_info;
-                disp(bits_counter)
+            
+            % if we are out of data bits, just fill batches with zeros
             else
-                disp(j)
-                disp('filling batch w zeros')
-                %needs to be filled with all zeros
                 batch = zeros(bits_per_batch,1);
             end
             
+            % convert batches to vector of real values in the time domain
             Xs_batch = to_cont(batch);
             Xtime_batch = ifft(Xs_batch);
             
             % add to the OFDM symbol - first need to add prefix
-            batch_prefix = Xtime_batch((bits_per_batch - n_plus + 1):bits_per_batch); % added the plus 1
+            batch_prefix = Xtime_batch((bits_per_batch - n_plus + 1):bits_per_batch);
 
             % concatenate prefix and batch to the OFDM_sym
             OFDM_sym = [OFDM_sym ; batch_prefix ; Xtime_batch];
@@ -113,15 +119,12 @@ for i = 1:num_syms
 
 end
 
-%generate wav file
+%generate transmission .wav file
 audiowrite(strcat('tx.wav'), full_vec_to_transmit, 44100, 'BitsPerSample', 24);
-
-length(full_vec_to_transmit)
 
 end
 
-
-% helper function for the above code
+% helper function for converting bits to continuous time
 function Xs = to_cont(b)
 
 % input: vector of bits
@@ -148,8 +151,5 @@ end
 % flip the left half and take the complex conjugate and concatenate
 Xs_right = flip(conj(Xs_left(2:end)));
 Xs = [Xs_left ; Xs_right];
-
-% always should be an odd number
-%disp(length(Xs));
 
 end
