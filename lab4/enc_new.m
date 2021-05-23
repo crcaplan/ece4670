@@ -4,6 +4,9 @@ function enc_new(b, num_bits, bits_per_batch, batches_per_sym, n_plus)
 num_info_per_batch = 0.75*bits_per_batch;
 num_zeros_per_batch = 0.25*bits_per_batch;
 
+%prepend a bunch of zeros because commcloud truncates signal
+zero_buffer = zeros(50000,1);
+
 % get the total number of OFDM symbols
 num_syms = ceil(num_bits/(num_info_per_batch*batches_per_sym));
 
@@ -11,7 +14,8 @@ num_syms = ceil(num_bits/(num_info_per_batch*batches_per_sym));
 bits_counter = 0;
 
 % create the vector that is to be transmitted
-full_vec_to_transmit = ones(1000,1);
+start_indicator = ones(1000,1);
+full_vec_to_transmit = [zero_buffer; start_indicator];
 
 % for each symbol
 for i = 1:num_syms
