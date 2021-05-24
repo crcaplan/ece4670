@@ -1,4 +1,11 @@
-function enc_new(b, num_bits, bits_per_batch, batches_per_sym, n_plus)
+function enc_new(b)
+
+% constants
+num_bits = 200000;
+bits_per_batch = 1000;
+batches_per_sym = 5;
+n_plus = 175;
+pow = 0.75;
 
 %set 3/4 of a batch to be info bits
 num_info_per_batch = 0.75*bits_per_batch;
@@ -32,7 +39,7 @@ for i = 1:num_syms
         % create vector of ones and send through to_cont to convert to symbols
         % then convert to the time domain
         batch_learn = ones(bits_per_batch,1);
-        X_learn = to_cont(batch_learn);
+        X_learn = to_cont(batch_learn,pow);
         X_time_learn = ifft(X_learn);
 
         % initialize the OFDM symbol
@@ -45,7 +52,7 @@ for i = 1:num_syms
             % should be vector of real values in the time domain
             info_batch = b(bits_counter + 1:bits_counter + num_info_per_batch);
             batch = [info_batch; zeros(num_zeros_per_batch,1)];
-            Xs_batch = to_cont(batch);
+            Xs_batch = to_cont(batch,pow);
             Xtime_batch = ifft(Xs_batch);
 
             % add to the OFDM symbol - first need to add prefix
@@ -72,7 +79,7 @@ for i = 1:num_syms
         % create vector of ones and send through to_cont to convert to symbols
         % then convert to the time domain
         batch_learn = ones(bits_per_batch,1);
-        X_learn = to_cont(batch_learn);
+        X_learn = to_cont(batch_learn,pow);
         X_time_learn = ifft(X_learn);
 
         % initialize the OFDM symbol
@@ -105,7 +112,7 @@ for i = 1:num_syms
             end
             
             % convert batches to vector of real values in the time domain
-            Xs_batch = to_cont(batch);
+            Xs_batch = to_cont(batch,pow);
             Xtime_batch = ifft(Xs_batch);
             
             % add to the OFDM symbol - first need to add prefix
@@ -123,13 +130,23 @@ for i = 1:num_syms
 
 end
 
+% add zero buffer to end of transmission
+full_vec_to_transmit = [full_vec_to_transmit; zero_buffer];
+
 %generate transmission .wav file
 audiowrite(strcat('tx.wav'), full_vec_to_transmit, 44100, 'BitsPerSample', 24);
+
+disp('avg power')
+n = norm(full_vec_to_transmit);
+avg_pow = n/length(full_vec_to_transmit-100000)
+
+disp('data rate')
+d_r = 200000/length(full_vec_to_transmit-100000)
 
 end
 
 % helper function for converting bits to continuous time
-function Xs = to_cont(b)
+function Xs = to_cont(b,pow)
 
 % input: vector of bits
 % output: complex-valued vector of symbols
@@ -138,8 +155,7 @@ function Xs = to_cont(b)
 b_len = length(b);
 Xs_left = zeros(b_len+1, 1);
 
-% initialize the power and random phase
-pow = 0.75;
+% initialize the random phase
 rng(5);
 theta = 2*pi*(rand(b_len,1));
 

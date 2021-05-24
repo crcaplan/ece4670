@@ -1,4 +1,11 @@
-function bhat = dec_new(num_bits, bits_per_batch, batches_per_sym, n_plus)
+function bhat = dec_new()
+
+% constants
+num_bits = 200000;
+bits_per_batch = 1000;
+batches_per_sym = 5;
+n_plus = 175;
+power = 0.75;
 
 %read in wav file
 [s_received,~]=audioread('rx.wav');
@@ -62,7 +69,6 @@ for i = 1:num_syms
         % of the extra zeros
         S_batch_left_info = S_batch_left(1:num_info_per_batch);
          
-        power = 0.75;
         % compare S_batch_left to power*fft of impulse response*.5
         compare_metric = 0.5*power*S_learn_mag; 
          
@@ -89,8 +95,8 @@ function first_point = find_first_symbol(s_received)
 
 % define counter and averaging constants
 sample_count = 0;
-window_len = 1;
-thresh = 0.0001;
+window_len = 20;
+thresh = 0.001;
 found = 0;
 
 while(found == 0)
