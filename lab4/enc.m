@@ -1,84 +1,152 @@
 function enc(b)
 
-Ns = 2*length(b) + 1;
-n_minus = 0;
-n_plus = 150; % or 175
+% constants
+num_bits = 200000;
+bits_per_batch = 1000;
+batches_per_sym = 5;
+n_plus = 175;
+pow = 0.75;
 
-% convert inputted bits to symbols
-Xs = to_cont(b);
+%set 3/4 of a batch to be info bits
+num_info_per_batch = 0.75*bits_per_batch;
+num_zeros_per_batch = 0.25*bits_per_batch;
 
-% convert "test batch" of ones to symbols
-Xlearn = to_cont(ones(length(b),1));
+%prepend a bunch of zeros because commcloud truncates signal
+zero_buffer = zeros(50000,1);
 
-% take iDFT of the symbols - get a vector of real values in the time domain
-Xtime = ifft(Xs); % fft of batch before prefix on batch
+% get the total number of OFDM symbols
+num_syms = ceil(num_bits/(num_info_per_batch*batches_per_sym));
 
-if any(Xtime ~= real(Xtime))
-    disp('bad news, buddy - Xtime');
-end
+% set a bit counter
+bits_counter = 0;
 
-batch_learn = ifft(Xlearn);
+% create the vector that is to be transmitted
+start_indicator = ones(1000,1);
+full_vec_to_transmit = [zero_buffer; start_indicator];
 
-if any(batch_learn ~= real(batch_learn))
-    disp('bad news, buddy - Xlearn');
-end
-
-% create a batch of zeros so know where signal starts
-batch0 = zeros(Ns,1);
-
-% determine the number of batches/wav files generated
-num_batches = 3;
-batch_size = 1000;
-num_iterations = ceil(length(b)/(num_batches*batch_size));
-
-for k = 0: num_iterations - 1
+% for each symbol
+for i = 1:num_syms
     
-    %disp(k)
+    %if-else to handle the case where information bits do not fit evenly
+    %into symbols (i.e. extra bits at the end)
     
-    start = batch_size*k;
+    %all except the last symbol will be handled "normally"
+    if(i ~= num_syms)
     
-    batch1 = [Xtime((start + batch_size-n_plus+1):(start + batch_size)); Xtime(start + 1 : start + batch_size)];
-    batch2 = [Xtime((2*(start+batch_size)-n_plus+1):(2*(start+batch_size))); Xtime(start+ batch_size+1:(2*(start+batch_size)))];
-    batch3 = [Xtime((3*(start+batch_size)-n_plus+1):(3*(start+batch_size))); Xtime(2*(start+batch_size)+1:(3*(start+batch_size)))];
-    full_batch = [batch0; batch_learn; batch1; batch2; batch3];
-    
-    % add zeros to end of the last one
-    if k == num_iterations
-        
-        % find num of leftover bits that cannot fit in a full batch
-        remainder = rem(length(b),num_batches);
-        
-        % check if those bits can fill a mini batch
-        if (remainder ~= 0 && rem(remainder, batch_size) == 0)
-            
-            % fill in the remaining mini batches with these bits
-            num_data_batches = remainder/batch_size;
-            full_batch = [batch0; batch_learn];
-            for i = 1:num_batches
-                if (i <= num_data_batches)
-                    full_batch = [full_batch ; [Xtime((i*(start+batch_size)-n_plus+1):(i*(start+batch_size))) ; Xtime(start+ batch_size+1:(2*(start+batch_size)))]];
-                else
-                    full_batch = [full_batch ; zeros(1000,1)];
-                end
-            end
-        
-        % check if those bits cannot fill a mini batch
-        % elseif remainder ~= 0 && rem(remainder, batch_size) ~= 0
+        % for each OFDM symbol create a vector of zeros
+        batch0 = zeros(bits_per_batch,1);
+
+        % create vector of ones and send through to_cont to convert to symbols
+        % then convert to the time domain
+        batch_learn = ones(bits_per_batch,1);
+        X_learn = to_cont(batch_learn,pow);
+        X_time_learn = ifft(X_learn);
+
+        % initialize the OFDM symbol
+        OFDM_sym = [batch0 ; X_time_learn];  % does this reset??????
+
+        % for each batch in a symbol
+        for j = 1:batches_per_sym
+
+            % extract the information bits, append zeros to the batch
+            % should be vector of real values in the time domain
+            info_batch = b(bits_counter + 1:bits_counter + num_info_per_batch);
+            batch = [info_batch; zeros(num_zeros_per_batch,1)];
+            Xs_batch = to_cont(batch,pow);
+            Xtime_batch = ifft(Xs_batch);
+
+            % add to the OFDM symbol - first need to add prefix
+            batch_prefix = Xtime_batch((bits_per_batch - n_plus + 1):bits_per_batch);
+
+            % concatenate prefix and batch to the OFDM_sym
+            OFDM_sym = [OFDM_sym ; batch_prefix ; Xtime_batch];
+
+            % increment the bits counter to start of next 
+            bits_counter = bits_counter + num_info_per_batch;
+
         end
+
+    
+    %last symbol will not need all info bits, need to fill the rest of the
+    %designated info bits with zeros
+    else
+        %do all of the ofdm stuff but only on remaining bits, fill the rest
+        %with zeros in the last batch
+        
+        % for each OFDM symbol create a vector of zeros
+        batch0 = zeros(bits_per_batch,1);
+
+        % create vector of ones and send through to_cont to convert to symbols
+        % then convert to the time domain
+        batch_learn = ones(bits_per_batch,1);
+        X_learn = to_cont(batch_learn,pow);
+        X_time_learn = ifft(X_learn);
+
+        % initialize the OFDM symbol
+        OFDM_sym = [batch0 ; X_time_learn];
+
+        % for each batch in a symbol
+        for j = 1:batches_per_sym
+            
+            % if the leftover bits fill a whole info batch, proceed as
+            % normal
+            if((bits_counter+num_info_per_batch)<num_bits)
+                % extract the information bits, append zeros to the batch
+                info_batch = b(bits_counter + 1:bits_counter + num_info_per_batch);
+                batch = [info_batch; zeros(num_zeros_per_batch,1)];
+                bits_counter = bits_counter + num_info_per_batch;
+                
+            % if the leftover bits can fill a partial info section, fill
+            % the remainder of the info section with zeros
+            elseif((num_bits-bits_counter)<num_info_per_batch && (num_bits-bits_counter)~=0)
+                % calculate remaining info bits and extra zeros needed
+                % extract the information bits, append zeros to the batch
+                remaining_info = num_bits - bits_counter;
+                info_batch = b(bits_counter + 1:bits_counter + remaining_info);
+                batch = [info_batch; zeros((bits_per_batch-remaining_info),1)];
+                bits_counter = bits_counter + remaining_info;
+            
+            % if we are out of data bits, just fill batches with zeros
+            else
+                batch = zeros(bits_per_batch,1);
+            end
+            
+            % convert batches to vector of real values in the time domain
+            Xs_batch = to_cont(batch,pow);
+            Xtime_batch = ifft(Xs_batch);
+            
+            % add to the OFDM symbol - first need to add prefix
+            batch_prefix = Xtime_batch((bits_per_batch - n_plus + 1):bits_per_batch);
+
+            % concatenate prefix and batch to the OFDM_sym
+            OFDM_sym = [OFDM_sym ; batch_prefix ; Xtime_batch];
+
+        end
+        
     end
     
-%generate wav file
-
-name = strcat('tx', int2str(k));
-
-audiowrite(strcat(name, '.wav'), full_batch, 44100, 'BitsPerSample', 24);
+    % add symbol to the full vector that is to be transmitted
+    full_vec_to_transmit = [full_vec_to_transmit ; OFDM_sym];
 
 end
 
+% add zero buffer to end of transmission
+full_vec_to_transmit = [full_vec_to_transmit; zero_buffer];
+
+%generate transmission .wav file
+audiowrite(strcat('tx.wav'), full_vec_to_transmit, 44100, 'BitsPerSample', 24);
+
+disp('avg power')
+n = norm(full_vec_to_transmit);
+avg_pow = n/length(full_vec_to_transmit-100000)
+
+disp('data rate')
+d_r = 200000/length(full_vec_to_transmit-100000)
+
 end
 
-% helper function for the above code
-function Xs = to_cont(b)
+% helper function for converting bits to continuous time
+function Xs = to_cont(b,pow)
 
 % input: vector of bits
 % output: complex-valued vector of symbols
@@ -87,8 +155,7 @@ function Xs = to_cont(b)
 b_len = length(b);
 Xs_left = zeros(b_len+1, 1);
 
-% initialize the power and random phase
-pow = 0.5;
+% initialize the random phase
 rng(5);
 theta = 2*pi*(rand(b_len,1));
 
@@ -104,8 +171,5 @@ end
 % flip the left half and take the complex conjugate and concatenate
 Xs_right = flip(conj(Xs_left(2:end)));
 Xs = [Xs_left ; Xs_right];
-
-% always should be an odd number
-%disp(length(Xs));
 
 end
