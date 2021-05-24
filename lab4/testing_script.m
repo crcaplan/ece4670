@@ -7,13 +7,13 @@ n_plus = 175; % or 175
 
 rng(42);
 b = double(rand(num_bits,1) > 0.5);
-enc_new(b, num_bits, bits_per_batch, batches_per_sym, n_plus);
+enc(b);
 
 disp('here');
 
 %%
 
-bhat = dec_new(num_bits, bits_per_batch, batches_per_sym, n_plus);
+bhat = dec();
 
 wrong_count = 0;
 
